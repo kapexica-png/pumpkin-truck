@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Тыквовоз</title>
+<style>
+html,body{height:100%;margin:0;background:#120a1f;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{position:fixed;inset:0;box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+#w{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+canvas{display:block}
+</style><script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head><body><div id="w"><canvas id="c"></canvas></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),w=document.getElementById('w');
+const W=360,H=640,G=470,F='"Trebuchet MS",Arial,sans-serif';
+const tg=window.Telegram&&Telegram.WebApp;let uname='';
+if(tg){try{tg.ready();tg.expand();tg.disableVerticalSwipes&&tg.disableVerticalSwipes();
+  tg.setHeaderColor&&tg.setHeaderColor('#120a1f');tg.setBackgroundColor&&tg.setBackgroundColor('#120a1f');
+  uname=(tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||''}catch(e){}}
+function hap(k,v){try{const h=tg&&tg.HapticFeedback;if(!h)return;k==='impact'?h.impactOccurred(v):h.notificationOccurred(v)}catch(e){}}
+const dpr=Math.min(devicePixelRatio||1,2);let S=1;
+function rs(){S=Math.min(w.clientWidth/W,w.clientHeight/H);c.style.width=W*S+'px';c.style.height=H*S+'px';c.width=W*dpr*S;c.height=H*dpr*S}
+addEventListener('resize',rs);rs();
+let best=0;try{best=+localStorage.getItem('best')||0}catch(e){}
+let st='menu',t=0,sp,score,lives,dist,y,vy,inv,obs,pk,fx,nx,shake,overAt=0;
+function reset(){sp=230;score=0;lives=3;dist=0;y=0;vy=0;inv=0;obs=[];pk=[];fx=[];nx=1;shake=0}
+reset();
+function press(){
+  if(st==='menu'||(st==='over'&&t-overAt>.6)){reset();st='play';return}
+  if(st==='play'&&y<=0){vy=600;hap('impact','light')}
+}
+function release(){if(vy>250)vy=250}
+c.addEventListener('pointerdown',e=>{e.preventDefault();press()});
+addEventListener('pointerup',release);
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)press()}});
+addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp')release()});
+
+function spawn(){
+  const r=Math.random(),X=W+40;
+  if(r<.45){const o={x:X,w:22+Math.random()*10,h:30+Math.random()*14};obs.push(o);const m=X+o.w/2;
+    pk.push({x:m-34,h:62},{x:m,h:90},{x:m+34,h:62})}
+  else if(r<.8){for(let i=0;i<4;i++)pk.push({x:X+i*30,h:16})}
+  else{obs.push({x:X,w:26,h:38});pk.push({x:X+13,h:100});pk.push({x:X+13+60,h:16})}
+}
+function update(dt){
+  if(st!=='play')return;
+  sp=Math.min(360,230+dist/100);dist+=sp*dt;
+  vy-=1500*dt;y+=vy*dt;if(y<=0){y=0;vy=0}
+  if((nx-=dt)<=0){spawn();nx=(300+Math.random()*220)/sp}
+  obs.forEach(o=>o.x-=sp*dt);pk.forEach(p=>p.x-=sp*dt);
+  obs=obs.filter(o=>o.x>-60);pk=pk.filter(p=>p.x>-30);
+  if(inv>0)inv-=dt;if(shake>0)shake-=dt;
+  const a=26,b=122;
+  for(const o of obs)if(inv<=0&&o.x<b&&o.x+o.w>a&&y<o.h){
+    lives--;hap('notify','error');inv=1.5;shake=.3;
+    if(lives<=0){st='over';overAt=t;if(score>best){best=score;try{localStorage.setItem('best',best)}catch(e){}}}
+    break}
+  pk=pk.filter(p=>{
+    if(p.x>a-11&&p.x<b+11&&p.h>y-11&&p.h<y+61){score++;
+      for(let i=0;i<8;i++)fx.push({x:p.x,y:G-p.h,vx:(Math.random()-.5)*220,vy:-Math.random()*200,l:.5});
+      return false}return true});
+  fx.forEach(f=>{f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=600*dt;f.l-=dt});fx=fx.filter(f=>f.l>0);
+}
+function pumpkin(cx,cy,r){
+  x.fillStyle='#ff8a1f';x.beginPath();x.ellipse(cx,cy,r*1.15,r,0,0,7);x.fill();
+  x.strokeStyle='#c4551a';x.lineWidth=1.5;x.beginPath();x.ellipse(cx,cy,r*.5,r,0,0,7);x.stroke();
+  x.fillStyle='#2a7a2a';x.fillRect(cx-1.5,cy-r-4,3,5);
+  x.fillStyle='#2b1200';x.beginPath();
+  x.moveTo(cx-6,cy-3);x.lineTo(cx-2,cy-3);x.lineTo(cx-4,cy-7);
+  x.moveTo(cx+6,cy-3);x.lineTo(cx+2,cy-3);x.lineTo(cx+4,cy-7);x.fill();
+  x.fillRect(cx-5,cy+3,10,2);
+}
+function wheel(cx,cy){
+  x.fillStyle='#111';x.beginPath();x.arc(cx,cy,9,0,7);x.fill();
+  x.fillStyle='#9aa0a8';x.beginPath();x.arc(cx,cy,4,0,7);x.fill();
+  const a=dist/9;x.strokeStyle='#111';x.lineWidth=1.5;x.beginPath();
+  x.moveTo(cx+Math.cos(a)*4,cy+Math.sin(a)*4);x.lineTo(cx-Math.cos(a)*4,cy-Math.sin(a)*4);x.stroke();
+}
+function truck(){
+  const g=G-y;
+  x.save();
+  x.fillStyle='#2a2a33';x.fillRect(20,g-18,106,6);
+  // tank
+  x.fillStyle='#f4f6f8';x.beginPath();x.roundRect(20,g-62,76,44,[20,14,4,4]);x.fill();
+  x.fillRect(40,g-68,12,7);
+  x.strokeStyle='#1f8a5b';x.lineWidth=5;x.beginPath();x.moveTo(22,g-40);x.quadraticCurveTo(60,g-52,94,g-58);x.stroke();
+  x.fillStyle='#1f8a5b';x.fillRect(40,g-38,38,11);
+  x.fillStyle='#fff';x.font='bold 8px '+F;x.textAlign='center';x.fillText('ЦЕМРОС',59,g-30);
+  // cab
+  x.fillStyle='#f4f6f8';x.beginPath();x.roundRect(96,g-50,30,36,[6,5,2,2]);x.fill();
+  x.fillStyle='#7fb4d6';x.fillRect(112,g-45,12,15);x.fillRect(101,g-45,9,15);
+  x.fillStyle='#8b919a';x.font='bold 5px '+F;x.fillText('BONUM',111,g-22);
+  x.fillStyle='#ffd34d';x.fillRect(122,g-24,4,5);
+  x.fillStyle='rgba(255,211,77,.25)';x.beginPath();x.moveTo(126,g-22);x.lineTo(150,g-30);x.lineTo(150,g-10);x.fill();
+  // witch hat
+  x.fillStyle='#3b1a5e';x.beginPath();x.moveTo(101,g-50);x.lineTo(121,g-50);x.lineTo(112,g-72);x.fill();
+  x.fillRect(98,g-52,26,3);
+  x.fillStyle='#ffb02e';x.fillRect(105,g-54,13,2);
+  [34,52,84,112].forEach(cx=>wheel(cx,g-9));
+  x.restore();
+}
+function draw(){
+  x.setTransform(dpr*S,0,0,dpr*S,0,0);
+  x.save();
+  if(shake>0)x.translate((Math.random()-.5)*8,(Math.random()-.5)*8);
+  const sk=x.createLinearGradient(0,0,0,G);sk.addColorStop(0,'#150a2a');sk.addColorStop(.7,'#5a2a6b');sk.addColorStop(1,'#d2641c');
+  x.fillStyle=sk;x.fillRect(-10,-10,W+20,G+10);
+  x.fillStyle='rgba(255,233,168,.15)';x.beginPath();x.arc(260,120,62,0,7);x.fill();
+  x.fillStyle='#ffe9a8';x.beginPath();x.arc(260,120,40,0,7);x.fill();
+  x.fillStyle='#2a1440';x.beginPath();x.moveTo(-10,G);
+  for(let i=-10;i<=W+10;i+=10)x.lineTo(i,G-40-30*Math.sin((i+dist*.15)/55));
+  x.lineTo(W+10,G);x.fill();
+  x.strokeStyle='#120a1f';x.lineCap='round';
+  for(let i=0;i<5;i++){const px=((i*200-dist*.3)%1000+1000)%1000-100;if(px>W+60)continue;
+    x.lineWidth=5;x.beginPath();x.moveTo(px,G);x.lineTo(px,G-90);x.stroke();
+    x.lineWidth=3;x.beginPath();x.moveTo(px,G-50);x.lineTo(px+22,G-80);x.moveTo(px,G-65);x.lineTo(px-20,G-95);x.stroke()}
+  x.fillStyle='#0e0818';x.fillRect(-10,G,W+20,H-G+10);
+  x.fillStyle='#3b1f57';x.fillRect(-10,G,W+20,3);
+  x.fillStyle='#24123a';
+  for(let i=0;i<8;i++){const px=((i*60-dist)%480+480)%480-60;x.fillRect(px,G+40,30,4)}
+  obs.forEach(o=>{x.fillStyle='#8d8aa3';x.beginPath();x.roundRect(o.x,G-o.h,o.w,o.h,[o.w/2,o.w/2,0,0]);x.fill();
+    x.fillStyle='#5e5b78';x.fillRect(o.x+o.w/2-1,G-o.h+8,2,10);x.fillRect(o.x+o.w/2-5,G-o.h+12,10,2)});
+  pk.forEach(p=>pumpkin(p.x,G-p.h,11));
+  if(!(inv>0&&Math.floor(t*12)%2))truck();
+  x.fillStyle='#ff8a1f';fx.forEach(f=>x.fillRect(f.x,f.y,3,3));
+  x.restore();
+  // HUD
+  x.textAlign='left';x.fillStyle='#fff';x.font='bold 26px '+F;
+  pumpkin(26,36,11);x.fillText(score,46,45);
+  x.textAlign='right';x.fillStyle='#ff5a3c';x.fillText('♥'.repeat(Math.max(lives,0)),W-14,45);
+  x.fillStyle='#d8c8ee';x.font='14px '+F;x.fillText('рекорд '+best,W-14,66);
+  x.textAlign='center';
+  if(st!=='play'){
+    x.fillStyle='rgba(18,10,31,.72)';x.fillRect(0,0,W,H);
+    x.fillStyle='#ff8a1f';x.font='bold 44px '+F;x.fillText(st==='menu'?'ТЫКВОВОЗ':'Конец рейса',W/2,250);
+    x.fillStyle='#fff';x.font='20px '+F;
+    if(st==='menu'&&uname)x.fillText('Привет, '+uname+'!',W/2,210);
+    if(st==='menu'){x.fillText('Цементовоз везёт тыквы к Хэллоуину.',W/2,292);x.fillText('Собирай их и объезжай надгробия.',W/2,320)}
+    else{x.fillText('Тыкв собрано: '+score,W/2,292);x.fillText('Рекорд: '+best,W/2,320)}
+    x.fillStyle='#ffd34d';x.font='bold 22px '+F;x.fillText(st==='menu'?'Тап — поехали, тап — прыжок':'Тап — ещё рейс',W/2,380);
+  }
+}
+let last=0;
+function loop(ts){const dt=Math.min(.033,(ts-last)/1000||0);last=ts;t+=dt;update(dt);draw();requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script></body></html>
